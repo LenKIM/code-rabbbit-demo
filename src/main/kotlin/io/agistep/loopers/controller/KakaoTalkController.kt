@@ -32,6 +32,17 @@ class KakaoTalkController(
         )
         return ResponseEntity.ok(response)
     }
+
+    @PostMapping("/send/bulk")
+    suspend fun sendBulkAlimTalk2(
+        @RequestBody request: BulkSendRequest
+    ): ResponseEntity<NotificationHubResponse> {
+        val response = kakaoTalkService.sendBulkAlimTalk(
+            templateCode = request.templateCode,
+            recipients = request.recipients
+        )
+        return ResponseEntity.ok(response)
+    }
 }
 
 data class BulkSendRequest(
