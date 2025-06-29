@@ -1,0 +1,18 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: loopers-notification
+
+notification-hub:
+  base-url: https://api-alimtalk.cloud.toast.com
+  app-key: ${NHN_APP_KEY:your-app-key}
+  secret-key: ${NHN_SECRET_KEY:your-secret-key}
+  sender-key: ${NHN_SENDER_KEY:your-sender-key}
+  timeout: 30s
+  
+logging:
+  level:
+    io.agistep.loopers: DEBUG
+    org.springframework.web.reactive.function.client: DEBUG

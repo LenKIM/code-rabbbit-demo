@@ -1,0 +1,146 @@
+package io.agistep.loopers.controller
+
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.agistep.loopers.dto.*
+import io.agistep.loopers.service.KakaoTalkService
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Test
+import org.mockito.Mockito.`when`
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest
+import org.springframework.boot.test.mock.mockito.MockBeans
+import org.springframework.http.MediaType
+import org.springframework.test.web.reactive.server.WebTestClient
+
+@WebFluxTest(KakaoTalkController::class)
+class KakaoTalkControllerTest {
+
+    @Autowired
+    private lateinit var webTestClient: WebTestClient
+
+    @MockBeans
+    private lateinit var kakaoTalkService: KakaoTalkService
+
+    private val objectMapper = jacksonObjectMapper()
+
+    @Test
+    fun `should send single alimtalk successfully`(): WebTestClient.BodyContentSpec = runBlocking {
+        // Given
+        val request = KakaoTalkSendRequest(
+            templateCode = "TEST_TEMPLATE",
+            recipientNo = "01012345678",
+            templateParameter = mapOf("name" to "테스트")
+        )
+
+        val mockResponse = NotificationHubResponse(
+            header = ResponseHeader(
+                resultCode = 0,
+                resultMessage = "SUCCESS",
+                isSuccessful = true
+            ),
+            body = ResponseBody(
+                data = SendResponseData(
+                    requestId = "test-request-id",
+                    statusCode = "SUCCESS"
+                )
+            )
+        )
+
+        `when`(kakaoTalkService.sendAlimTalk(request)).thenReturn(mockResponse)
+
+        // When & Then
+        webTestClient.post()
+            .uri("/api/v1/kakaotalk/send")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(objectMapper.writeValueAsString(request))
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
+            .expectBody()
+            .jsonPath("$.header.isSuccessful").isEqualTo(true)
+            .jsonPath("$.header.resultCode").isEqualTo(0)
+            .jsonPath("$.body.data.requestId").isEqualTo("test-request-id")
+    }
+
+    @Test
+    fun `should send bulk alimtalk successfully`() = runBlocking {
+        // Given
+        val request = BulkSendRequest(
+            templateCode = "BULK_TEMPLATE",
+            recipients = listOf(
+                BulkRecipient(
+                    recipientNo = "01012345678",
+                    templateParameter = mapOf("name" to "사용자1")
+                ),
+                BulkRecipient(
+                    recipientNo = "01087654321",
+                    templateParameter = mapOf("name" to "사용자2")
+                )
+            )
+        )
+
+        val mockResponse = NotificationHubResponse(
+            header = ResponseHeader(
+                resultCode = 0,
+                resultMessage = "SUCCESS",
+                isSuccessful = true
+            ),
+            body = ResponseBody(
+                data = SendResponseData(
+                    requestId = "bulk-request-id",
+                    statusCode = "SUCCESS"
+                )
+            )
+        )
+
+        `when`(kakaoTalkService.sendBulkAlimTalk(request.templateCode, request.recipients)).thenReturn(mockResponse)
+
+        // When & Then
+        webTestClient.post()
+            .uri("/api/v1/kakaotalk/send/bulk")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(objectMapper.writeValueAsString(request))
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().contentType(MediaType.APPLICATION_JSON)
+            .expectBody()
+            .jsonPath("$.header.isSuccessful").isEqualTo(true)
+            .jsonPath("$.body.data.requestId").isEqualTo("bulk-request-id")
+    }
+
+    @Test
+    fun `should return bad request for invalid phone number`() {
+        // Given
+        val invalidRequest = KakaoTalkSendRequest(
+            templateCode = "TEST_TEMPLATE",
+            recipientNo = "123456789", // 잘못된 전화번호 형식
+            templateParameter = mapOf("name" to "테스트")
+        )
+
+        // When & Then
+        webTestClient.post()
+            .uri("/api/v1/kakaotalk/send")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(objectMapper.writeValueAsString(invalidRequest))
+            .exchange()
+            .expectStatus().isBadRequest
+    }
+
+    @Test
+    fun `should return bad request for empty template code`() {
+        // Given
+        val invalidRequest = KakaoTalkSendRequest(
+            templateCode = "", // 빈 템플릿 코드
+            recipientNo = "01012345678",
+            templateParameter = mapOf("name" to "테스트")
+        )
+
+        // When & Then
+        webTestClient.post()
+            .uri("/api/v1/kakaotalk/send")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(objectMapper.writeValueAsString(invalidRequest))
+            .exchange()
+            .expectStatus().isBadRequest
+    }
+}
